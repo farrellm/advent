@@ -20,7 +20,9 @@ library
                      , base >= 4.7 && < 5
                      , basic-prelude
                      , containers
+                     , mtl
                      , parsec
+                     , primitive
                      , split
                      , text
                      , vector
