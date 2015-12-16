@@ -3,6 +3,7 @@ module Day7 ( ) where
 
 import BasicPrelude hiding (try)
 
+import Data.Bits
 import qualified Data.Map as M
 import Data.Map ((!))
 import qualified Data.Text as T
@@ -24,8 +25,9 @@ data BinGate = And | Or | LShift | RShift
           deriving (Show)
 data UniGate = Id | Not
           deriving (Show)
-data Value = Bin BinGate (Either String Word16) (Either String Word16) |
-             Uni UniGate (Either String Word16)
+type Term = Either String Word16
+data Value = Bin BinGate Term Term |
+             Uni UniGate Term
              deriving (Show)
 data Circuit = Circuit Value String
              deriving (Show)
@@ -39,7 +41,7 @@ circuit =
   try (Circuit <$> (Uni Id <$> value) <*> output) <|>
   Circuit <$> (Uni <$> uniGate <*> value) <*> output
 
-value :: CharParser st (Either String Word16)
+value :: CharParser st Term
 value = try ((Right . fromInteger) <$> decimal <* whiteSpace) <|>
         (Left <$> identifier)
 
@@ -70,17 +72,36 @@ test = pure "123 -> x\n\
 type Lookup = M.Map String Value
 
 calculate :: String -> State Lookup Word16
-calculate s = do
-  m <- get
-  let v = m ! s
-  pure 0
+calculate l = gets (fromMaybe undefined . M.lookup l) >>= calcGate
+  where toInt = fromInteger . toInteger
 
--- p1 :: IO [Circuit]
+        calcTerm :: Term -> State Lookup Word16
+        calcTerm (Right x) = pure x
+        calcTerm (Left s) = do
+          v <- gets (fromMaybe undefined . M.lookup s) >>= calcGate
+          modify (M.insert s (Uni Id (Right v)))
+          pure v
+
+        calcGate :: Value -> State Lookup Word16
+        calcGate (Uni Id t) = calcTerm t
+        calcGate (Uni Not t) = complement <$> calcTerm t
+        calcGate (Bin And a b) = (.&.) <$> calcTerm a <*> calcTerm b
+        calcGate (Bin Or a b) = (.|.) <$> calcTerm a <*> calcTerm b
+        calcGate (Bin LShift a b) = shiftL <$> calcTerm a <*> (toInt <$> calcTerm b)
+        calcGate (Bin RShift a b) = shiftR <$> calcTerm a <*> (toInt <$> calcTerm b)
+
+p1 :: IO Word16
 p1 = do
-  circuits <- (either (const []) id . parseCircuits . T.unpack) <$> test
+  circuits <- (either (const []) id . parseCircuits . T.unpack) <$> input
 
   let gates = foldl (\m (Circuit v k) -> M.insert k v m) M.empty circuits
+  pure . fst $ (runState $ calculate "a") gates
+-- 956
 
+p2 :: IO Word16
+p2 = do
+  circuits <- (either (const []) id . parseCircuits . T.unpack) <$> input
 
-
-  pure gates
+  let gates = foldl (\m (Circuit v k) -> M.insert k v m) M.empty circuits
+  pure . fst $ (runState $ calculate "a") (M.insert "b" (Uni Id (Right 956)) gates)
+-- 40149
