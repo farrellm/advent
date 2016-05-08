@@ -5,8 +5,8 @@ import Control.Monad
 
 import Data.Char
 import Data.List
-import qualified Data.Map as M
-import Data.Map ((!))
+import qualified Data.Map.Strict as M
+import Data.Map.Strict ((!))
 import qualified Data.Set as S
 
 import Text.ParserCombinators.Parsec hiding ((<|>), State)
